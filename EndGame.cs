@@ -28,6 +28,10 @@ public partial class EndGame : Control
 
 	private void exitButton()
 	{
+		KillManager.Instance?.UnregisterUI();
+		CaptureManager.Instance?.Reset();
+		MatchStats.Instance?.Reset();
+
 		GetTree().ChangeSceneToFile("res://Menu.tscn");
 	}
 	

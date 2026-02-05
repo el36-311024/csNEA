@@ -34,7 +34,11 @@ project/assembly_name="CS NEA"
 
 [editor_plugins]
 
-enabled=PackedStringArray()
+enabled=PackedStringArray("res://addons/asset_placer/plugin.cfg")
+
+[filesystem]
+
+import/blender/enabled=false
 
 [input]
 

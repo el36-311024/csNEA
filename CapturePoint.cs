@@ -34,15 +34,15 @@ public partial class CapturePoint : Node3D
 			default: 
 				GD.PrintErr("Unknown capture point node name: " + nodeName); 
 				break; 
-			} 
-			AddToGroup("CapturePoint"); 
-			var mat = areaColour.GetActiveMaterial(0) as StandardMaterial3D; 
-			mat = (StandardMaterial3D)mat.Duplicate(); 
-			areaColour.SetSurfaceOverrideMaterial(0, mat); 
-			captureArea.BodyEntered += OnBodyEntered; 
-			captureArea.BodyExited += OnBodyExited; 
-			UpdateColour(); 
 		} 
+		AddToGroup("CapturePoint"); 
+		var mat = areaColour.GetActiveMaterial(0) as StandardMaterial3D; 
+		mat = (StandardMaterial3D)mat.Duplicate(); 
+		areaColour.SetSurfaceOverrideMaterial(0, mat); 
+		captureArea.BodyEntered += OnBodyEntered; 
+		captureArea.BodyExited += OnBodyExited; 
+		UpdateColour(); 
+	}
 	
 	public override void _PhysicsProcess(double delta) 
 	{ 
@@ -164,4 +164,19 @@ public partial class CapturePoint : Node3D
 			teamInside.Remove(body); 
 			enemyInside.Remove(body); 
 		} 
+		
+		public void ResetPoint()
+		{ 
+			Owner = OwnerType.Neutral; 
+			progress = 0f;
+ 
+			if (Bar != null)
+			{
+				Bar.Value = 50;
+			}
+ 
+			teamInside.Clear();
+			enemyInside.Clear(); 
+			UpdateColour();
+		}
 	}

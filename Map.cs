@@ -24,6 +24,9 @@ public partial class Map : Node3D
 		
 		CaptureUI = GetNode<CanvasLayer>("CM/CanvasLayer");
 		ShowCaptureManagerUI(true);
+		
+		KillManager.Instance.RegisterUI(teamBar, enemyBar, teamCount, enemyCount);
+		KillManager.Instance.Reset();
 	}
 	
 	public override void _ExitTree()
@@ -36,7 +39,7 @@ public partial class Map : Node3D
 	
 	public void ShowCaptureManagerUI(bool show)
 	{
-			CaptureUI.Visible = show;
+		CaptureUI.Visible = show;
 	}
 	
 	private void KMBar()

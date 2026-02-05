@@ -1,3 +1,4 @@
+//change this code so when team shoots inside enemy detection range. when team shoots, enemy detects bulletteam using IsBulletTeamInDetectionRange(), then they use lookattargetordirection() for 2seconds to look at team, then after 2 seconds look normally to where they go. if raycast hits during those 2 seconds, use the raycast code already there. also, if multiple bulletteam is detected inside detection range, only look at team of the first bullet, ignore the others. must wait till its finish its time until they look at the next team that fired inside
 using Godot;
 using System;
 using System.Threading.Tasks;
@@ -6,47 +7,27 @@ using System.Linq;
 
 public partial class enemy : RigidBody3D
 {
+	private enum EnemyState
+	{
+		GoingToCapturePoint,
+		InCombat,
+		HuntingTeam,
+		GuardingCapturePoint
+	}
+
+	private EnemyState currentState;
+	
 	private int MaxHealth = 100;
 	private int CurrentHealth;
 	private Marker3D spawnMarker;
 	private string gunName;
-	private RayCast3D EnemySight;
-	private Vector3 lastKnownTargetPosition;
-	private bool forcedHunt = false;
 	
 	private NavigationAgent3D MovementEnemy;
-	private float moveSpeed = 5f;
-	private float PreCaptureMoveSpeed = 3.5f;
-	private float CapturedMoveSpeed = 3f;
-	private float stuckTimer = 0f;
-	
-	private const float SeparationRadius = 1.0f;
-	private const float SeparationStrength = 8f;
-	private const float CapturePointSpread = 1.5f;
-	
-	private EnemyState currentState = EnemyState.GoingToCapture;
-	private List<Node3D> capturePoints = new();
-	private Node3D currentCapturePoint;
-	private RandomNumberGenerator rng = new();
-
+	private float moveSpeed = 7.5f;
 	private Area3D EnemyDetection;
 	private Node3D currentTarget;
 	private float detectionRange = 1f;
 	private float rotationSpeed = 6f;
-	
-	private Vector3 combatMoveTarget;
-	private bool hasCombatMoveTarget = false;
-	private float combatMoveRadius = 6f;
-	private float combatRepathTime = 0.5f;
-	private float combatRepathTimer = 0f;
-	private float minCombatDistance = 1f;
-	private float baseMinCombatDistance;
-	private float strafeAngle = 15f;
-	private float strafeSpeed = 1.5f;
-	private float huntTimer = 0f;
-	private const float MaxHuntTime = 10f;
-	private bool isHunting = false;
-	private Node3D huntTarget;
 	
 	private int ammoAmount;
 	public int currentAmmo;
@@ -56,23 +37,32 @@ public partial class enemy : RigidBody3D
 	private bool isShooting = false;
 	private Node3D gunHolder;
 	private PackedScene bulletEnemyScene;
+	private float minDistance;
+	private const float DistanceAway = 2.0f;
 	
 	private float ragdollTime = 3.0f;
 	private bool isDead = false;
 	public event Action<Marker3D, string> EnemyDied;
+	  
+	private Node3D assignedCapturePoint;
+	private Node3D lastCapturePoint;
+	private bool captureCompleted = false;
+	private Vector3 captureOffset;  
+	private RandomNumberGenerator rng = new RandomNumberGenerator();
+	private Vector3 combatMoveDirection = Vector3.Zero;
+	private float combatMoveTimer = 0f;
+	private float combatMoveInterval = 0.3f;
+	private RayCast3D EnemySight;
+	private float huntTimer = 0f;
+	private const float MaxHuntTime = 10f;
 	
-	private enum EnemyState 
-	{
-		GoingToCapture,
-		InCombat,
-		GoingToNearestCapturePoint,
-		GoToAnotherPointAfterCapture,
-		HuntingTeam,
-		HuntingTeamForLeaving,
-		WaitingAtCapturePoint,
-		GuardCapturePoint,
-		CapturePointIsBeingRecaptured,
-	}
+	private float guardStayTimer = 0f;
+	private const float GuardStayRequired = 15f;
+	private bool decidedToStay = false;
+	private bool decidedToLeave = false; 
+	private Vector3 guardTarget = Vector3.Zero;
+	private float guardRepathTimer = 0f;
+	private const float GuardRepathInterval = 2.5f; 
 	
 	public override void _Ready()
 	{
@@ -82,15 +72,15 @@ public partial class enemy : RigidBody3D
    		AxisLockAngularZ = true;
 		
 		MovementEnemy = GetNode<NavigationAgent3D>("MovementEnemy");
-		EnemyDetection = GetNode<Area3D>("EnemyDetection");
+		EnemyDetection = GetNode<Area3D>("EnemyDetection"); 
 		gunHolder = GetNode<Node3D>("ArmPivot/ArmMovement/GunPivot/GunHolder");
 		bulletEnemyScene = GD.Load<PackedScene>("res://BulletEnemy.tscn");
 		EnemySight = GetNode<RayCast3D>("ArmPivot/ArmMovement/GunPivot/EnemySight");
 		AddToGroup("Enemy");
 		
-		EnemyDetection.BodyEntered += OnDetectionBodyEntered;
-		capturePoints = GetTree().GetNodesInGroup("CapturePoint").OfType<Node3D>().ToList();
+		rng.Randomize();
 		PickRandomCapturePoint();
+		currentState = EnemyState.GoingToCapturePoint; 
 	}
 
 	private void SetGunStats(string gun)
@@ -98,276 +88,543 @@ public partial class enemy : RigidBody3D
 		switch (gun)
 		{
 			case "Pistol":
-				detectionRange = 25f;
-				minCombatDistance = 10f;
-				baseMinCombatDistance = minCombatDistance;
+				detectionRange = 30f;
+				minDistance = 10f;
 				ammoAmount = 12;
 				reloadTime = 2f;
 				fireRate = 0.3f;
 				break;
+
 			case "Rifle1":
-				detectionRange = 35f;
-				minCombatDistance = 15f;
-				baseMinCombatDistance = minCombatDistance;
+				detectionRange = 40f;
+				minDistance = 15f;
 				ammoAmount = 50;
 				reloadTime = 3f;
 				fireRate = 0.5f;
 				break;
+
 			case "Rifle2":
-				detectionRange = 30f;
-				minCombatDistance = 15f;
-				baseMinCombatDistance = minCombatDistance;
+				detectionRange = 40f;
+				minDistance = 15f;
 				ammoAmount = 36;
 				reloadTime = 2f;
 				fireRate = 0.3f;
 				break;
+
 			case "Heavy":
-				detectionRange = 25f;
-				minCombatDistance = 20f;
-				baseMinCombatDistance = minCombatDistance;
+				detectionRange = 30f;
+				minDistance = 20f;
 				ammoAmount = 100;
 				reloadTime = 4f;
 				fireRate = 0.2f;
 				break;
+
 			case "Sniper":
-				detectionRange = 60f;
-				minCombatDistance = 45f;
-				baseMinCombatDistance = minCombatDistance;
+				detectionRange = 65f;
+				minDistance = 50f;
 				ammoAmount = 2;
 				reloadTime = 4f;
 				fireRate = 2.5f;
 				break;
 			default:
+				detectionRange = 1f;
+				minDistance = 1f;
+				ammoAmount = 0;
+				reloadTime = 0f;
+				fireRate = 0f;
 				break;
 		}
 		currentAmmo = ammoAmount;
 	}
 	
-	private bool UsesRandomRetreat()
+	private bool IsCloseCombat()
 	{
-		return gunName == "Pistol" || gunName == "Rifle1" || gunName == "Rifle2";
+		return IsTeamInDetectionRange();
 	}
 	
-	private bool UsesCircleStrafe()
+	private void UpdateEnemySight()
 	{
-		return gunName == "Heavy" || gunName == "Sniper";
+		EnemySight.Enabled = !IsCloseCombat();
 	}
 	
-	private void UpdateEnemyState()
+	private void UpdateDetectionRange()
 	{
-		bool teamInDetection = HasTeamInDetection();
+		var shapeNode = EnemyDetection.GetNode<CollisionShape3D>("CollisionShape3D");
 
-		if (currentState == EnemyState.HuntingTeam && forcedHunt)
+		if (shapeNode.Shape is SphereShape3D sphere)
 		{
+			SphereShape3D newSphere = new SphereShape3D();
+			newSphere.Radius = detectionRange;
+
+			shapeNode.Shape = newSphere;
+		}
+	}
+	
+	private Vector3 GetCombatMoveDirection(Vector3 targetPos, double delta)
+	{
+		Vector3 toTarget = (targetPos - GlobalPosition).Normalized();
+		Vector3 awayFromTarget = -toTarget;
+ 
+		Vector3 randomDirection = GetSmoothCombatDirection(delta).Normalized();
+
+		float distance = GlobalPosition.DistanceTo(targetPos);
+
+		Vector3 finalDirection;
+
+		if (distance < minDistance)
+		{ 
+			finalDirection = (awayFromTarget * 0.7f) + (randomDirection * 0.6f);
+		}
+		else if (distance > minDistance + DistanceAway)
+		{ 
+			finalDirection = (toTarget * 0.6f) + (randomDirection * 0.7f);
+		}
+		else
+		{ 
+			finalDirection = randomDirection;
+		}
+
+		finalDirection.Y = 0;
+		return finalDirection.Normalized();
+	}
+	
+	private void PickRandomCapturePoint()
+	{
+		var cps = GetTree().GetNodesInGroup("CapturePoint").OfType<Node3D>().ToList();
+
+		if (cps.Count == 0)
 			return;
+
+		if (lastCapturePoint != null && cps.Count > 1)
+		{
+			cps.Remove(lastCapturePoint);
+		}
+
+		int index = rng.RandiRange(0, cps.Count - 1);
+		assignedCapturePoint = cps[index];
+
+		lastCapturePoint = assignedCapturePoint;
+
+		captureOffset = new Vector3(rng.RandfRange(-4f, 4f), 0, rng.RandfRange(-4f, 4f));
+
+		captureCompleted = false;
+	}
+	
+	private bool IsCaptureOwnedByEnemy()
+	{
+		if (assignedCapturePoint is CapturePoint cp)
+			return cp.Owner == CapturePoint.OwnerType.Enemy;
+
+		return false;
+	}
+	
+	public override void _PhysicsProcess(double delta)
+	{
+		HandleRotation(delta); 
+		UpdateEnemySight();
+		Shooting();
+		
+		if (currentState == EnemyState.GuardingCapturePoint && IsTeamInDetectionRange())
+		{
+			UpdateTarget();
+			ChangeState(EnemyState.InCombat);
+		}
+
+		if (CurrentHealth <= 25 && currentState != EnemyState.GoingToCapturePoint)
+		{
+			LookAtTargetOrDirection(delta);
+			LookMovement(delta);
+			Shooting();
+			ChangeState(EnemyState.GoingToCapturePoint);
+			currentTarget = null;  
 		}
 		
 		switch (currentState)
 		{
-			case EnemyState.GoingToCapture:
-				if (teamInDetection)
-				{
-					currentState = EnemyState.InCombat;
-					hasCombatMoveTarget = false;
-					break;
-				}
-
-				if (HasReachedDestination())
-				{
-					currentState = EnemyState.WaitingAtCapturePoint;
-				}
+			case EnemyState.GoingToCapturePoint:
+				State_GoingToCapturePoint(delta);
 				break;
-
 			case EnemyState.InCombat:
-				if (!teamInDetection && currentTarget != null)
-				{
-					TriggerHunt(currentTarget.GlobalPosition);
-					break;
-				}
+				State_InCombat(delta);
 				break;
-
 			case EnemyState.HuntingTeam:
-				huntTimer -= (float)GetPhysicsProcessDeltaTime();
-
-				if (teamInDetection)
-				{
-					currentState = EnemyState.InCombat;
-					break;
-				}
-
-				if (huntTimer <= 0f)
-				{
-					huntTarget = null;
-					PickRandomCapturePoint();
-					currentState = EnemyState.GoingToCapture;
-				}
+				State_HuntingTeam(delta);
 				break;
-
-			case EnemyState.WaitingAtCapturePoint:
-				if (teamInDetection)
-				{
-					currentState = EnemyState.InCombat;
-				}
+			case EnemyState.GuardingCapturePoint:
+				State_GuardingCapturePoint(delta);
 				break;
 		}
 	}
 	
-	private void OnDetectionBodyEntered(Node body)
+	private void HandleRotation(double delta)
+	{
+		if (currentState == EnemyState.InCombat)
+		{
+			LookAtTargetOrDirection(delta);
+		}
+		else
+		{ 
+			LookMovement(delta);
+		}
+	}
+	
+	private void ChangeState(EnemyState newState)
+	{
+		if (currentState == newState) return;
+ 
+		guardStayTimer = 0f;
+		decidedToStay = false;
+		decidedToLeave = false;
+		guardTarget = Vector3.Zero;
+		guardRepathTimer = 0f;
+
+		if (newState == EnemyState.HuntingTeam)
+		{
+			huntTimer = MaxHuntTime;
+		}
+
+		currentState = newState;
+	}
+	
+	private void MoveUsingNavigation(Vector3 target, double delta)
 	{ 
-		if (isDead)
+		if (IsTeamInDetectionRange())
+			return;
+
+		MovementEnemy.TargetPosition = target;
+
+		Vector3 next = MovementEnemy.GetNextPathPosition();
+		Vector3 Direction = (next - GlobalPosition).Normalized();
+		ApplyMovement(new Vector3(Direction.X, 0, Direction.Z), moveSpeed);
+	}
+	
+	private void ApplyMovement(Vector3 desiredDirection, float speed)
+	{
+		Vector3 vel = LinearVelocity;
+
+		Vector3 desiredVel = desiredDirection * speed;
+
+		vel.X = desiredVel.X;
+		vel.Z = desiredVel.Z; 
+		LinearVelocity = vel;
+	}
+	
+	private Vector3 GetSmoothCombatDirection(double delta)
+	{
+		combatMoveTimer -= (float)delta;
+
+		if (combatMoveTimer <= 0f || combatMoveDirection == Vector3.Zero)
+		{
+			combatMoveTimer = combatMoveInterval;
+
+			Vector3[] Directions =
+			{
+				Transform.Basis.X,      
+				-Transform.Basis.X,     
+				-Transform.Basis.Z,     
+				Transform.Basis.Z       
+			};
+
+			combatMoveDirection = Directions[rng.RandiRange(0, Directions.Length - 1)];
+		}
+
+		return combatMoveDirection;
+	}
+	
+	private void State_InCombat(double delta)
+	{
+		UpdateTarget();
+		
+		if (CurrentHealth <= 25)
+		{
+			ChangeState(EnemyState.GoingToCapturePoint);
+			return;
+		}
+
+		if (currentTarget == null || !IsInstanceValid(currentTarget))
+		{
+			if (CurrentHealth > 50)
+				ChangeState(EnemyState.HuntingTeam);
+			else
+				ChangeState(EnemyState.GoingToCapturePoint);
+			return;
+		}
+
+		float distance = GlobalPosition.DistanceTo(currentTarget.GlobalPosition);
+
+		if (distance > detectionRange)
+		{
+			if (CurrentHealth > 50)
+				ChangeState(EnemyState.HuntingTeam);
+			else
+				ChangeState(EnemyState.GoingToCapturePoint);
+			return;
+		}
+  
+		Vector3 combatDirection = GetCombatMoveDirection(currentTarget.GlobalPosition, delta);
+ 
+		float speedMultiplier = 1f;
+		if (gunName == "Sniper")
+			speedMultiplier = 0.75f;
+		else if (gunName == "Heavy")
+			speedMultiplier = 0.5f;
+ 
+		float idealMin = minDistance;
+		float idealMax = minDistance + DistanceAway;
+
+		Vector3 finalMoveDirection = combatDirection;
+ 
+		if (distance < idealMin)
+		{
+			Vector3 away = (GlobalPosition - currentTarget.GlobalPosition).Normalized();
+			finalMoveDirection = (away * 0.85f) + (combatDirection * 0.45f);
+		} 
+		else if (distance > idealMax)
+		{
+			Vector3 desiredPos =
+				currentTarget.GlobalPosition +
+				(GlobalPosition - currentTarget.GlobalPosition).Normalized() * minDistance;
+
+			Vector3 toDesired = desiredPos - GlobalPosition;
+			if (toDesired.LengthSquared() > 0.0001f)
+			{
+				Vector3 toDesiredDirection = toDesired.Normalized();
+				finalMoveDirection = (toDesiredDirection * 0.7f) + (combatDirection * 0.6f);
+			}
+		}
+ 
+		finalMoveDirection.Y = 0;
+		if (finalMoveDirection.LengthSquared() < 0.0001f)
+			finalMoveDirection = -GlobalTransform.Basis.Z;
+
+		ApplyMovement(finalMoveDirection.Normalized(), moveSpeed * speedMultiplier);
+	}
+
+	
+	private void State_GoingToCapturePoint(double delta)
+	{
+		if (assignedCapturePoint == null)
 			return;
  
-		if (body is BulletTeam bullet)
-		{ 
-			if (bullet.TeamShooter is Node3D teamshooter && teamshooter.IsInGroup("Team"))
+		if (ShootDecider(out Node3D target))
+		{
+			currentTarget = target;
+
+			if (IsTeamInDetectionRange())
 			{
-				TriggerHunt(teamshooter.GlobalPosition);
+				ChangeState(EnemyState.InCombat);
+				return;
 			}
+
+			MoveUsingNavigation(currentTarget.GlobalPosition, delta);
+			LookAtTargetOrDirection(delta);
+			Shooting();
+			return;
+		}
+ 
+		Vector3 targetPos = assignedCapturePoint.GlobalPosition + captureOffset;
+		MoveUsingNavigation(targetPos, delta);
+
+		if (IsInsideCapturePoint())
+		{
+			ChangeState(EnemyState.GuardingCapturePoint);
 		}
 	}
 	
-	private void EnemyMovement(double delta)
-	{
-		if (moveSpeed <= 0f)
+	private void State_HuntingTeam(double delta)
+	{ 
+		if (currentTarget == null || !IsInstanceValid(currentTarget))
 		{
-			LinearVelocity = new Vector3(0, LinearVelocity.Y, 0);
+			ChangeState(EnemyState.GoingToCapturePoint);
 			return;
 		}
-
-		Vector3 nextPos = MovementEnemy.GetNextPathPosition();
-		Vector3 direction = nextPos - GlobalPosition;
-		direction.Y = 0;
-
-		if (direction.LengthSquared() < 0.05f)
+ 
+		if (IsTeamInDetectionRange())
 		{
-			MovementEnemy.TargetPosition += GetSeparationOffset();
+			ChangeState(EnemyState.InCombat);
 			return;
 		}
-
-		direction = direction.Normalized();
-
-		Vector3 finalDir = direction;
-
-		if (currentState == EnemyState.GoingToCapture)
+ 
+		MoveUsingNavigation(currentTarget.GlobalPosition, delta);
+ 
+		huntTimer -= (float)delta;
+		if (huntTimer <= 0f)
 		{
-			Vector3 separation = GetSeparationOffset();
-			separation = separation.LimitLength(5f);
-			finalDir = (direction + separation).Normalized();
+			ChangeState(EnemyState.GoingToCapturePoint);
 		}
-
-		Vector3 velocity = finalDir * moveSpeed;
-		velocity.Y = LinearVelocity.Y;
-		LinearVelocity = velocity;
 	}
 	
-	private void UpdateCombatMovement(double delta)
+	private void State_GuardingCapturePoint(double delta)
 	{
-		if (currentTarget == null)
-			return;
-			
-		if (AllyInSight())
+		if (ShootDecider(out Node3D target))
 		{
-			MoveOutOfAllyWay();
+			currentTarget = target;
+			LookAtTargetOrDirection(delta); 
+			ApplyMovement(Vector3.Zero, 0f);
 			return;
 		}
 		
-		if (IsLowHealth())
+		if (IsTeamInDetectionRange())
 		{
-			Node3D cover = FindNearestCover();
-			if (cover != null)
-			{
-				MovementEnemy.TargetPosition = cover.GlobalPosition;
-				hasCombatMoveTarget = true;
-				return; 
-			}
-		}	
+			ChangeState(EnemyState.InCombat);
+			return;
+		}
 
-		
-		if (IsLowHealth())
-			minCombatDistance = baseMinCombatDistance + 10f;
+		if (IsCloseCombat())
+		{
+			UpdateTarget();
+			LookAtTargetOrDirection(delta);
+			Shooting();
+		}
+
+		guardRepathTimer -= (float)delta;
+
+		if (guardTarget == Vector3.Zero || guardRepathTimer <= 0f ||
+			GlobalPosition.DistanceTo(guardTarget) < 0.6f)
+		{
+			guardTarget = PickRandomPointInCapturePoint();
+			guardRepathTimer = GuardRepathInterval;
+		}
+
+		if (!IsTeamInDetectionRange())
+		{
+			MoveUsingNavigation(guardTarget, delta);
+		}
 		else
-			minCombatDistance = baseMinCombatDistance;
-
-		combatRepathTimer -= (float)delta;
-		strafeAngle += strafeSpeed * (float)delta;
-
-		Vector3 awayDir = (GlobalPosition - currentTarget.GlobalPosition);
-		awayDir.Y = 0;
-
-		float distance = awayDir.Length();
-		if (distance < 0.01f)
-			awayDir = Vector3.Forward;
-
-		awayDir = awayDir.Normalized();
-
-		if (distance < minCombatDistance)
 		{
-			if (UsesRandomRetreat())
-			{
-				Vector3 randomBack = awayDir * minCombatDistance + new Vector3(rng.RandfRange(-combatMoveRadius, combatMoveRadius), 0, rng.RandfRange(-combatMoveRadius, combatMoveRadius));
-				MovementEnemy.TargetPosition = currentTarget.GlobalPosition + randomBack;
-			}
-			else if (UsesCircleStrafe())
-			{
-				Vector3 right = awayDir.Cross(Vector3.Up);
-				Vector3 circle = right * Mathf.Sin(strafeAngle) * minCombatDistance;
-				MovementEnemy.TargetPosition = currentTarget.GlobalPosition + awayDir * minCombatDistance + circle;
-				moveSpeed = CapturedMoveSpeed;
-			}
-
-			hasCombatMoveTarget = true;
-			return;
+			ApplyMovement(Vector3.Zero, 0f);
 		}
 
-		if (!hasCombatMoveTarget || combatRepathTimer <= 0f)
-		{
-			Vector3 offset;
+		if (!IsCaptureOwnedByEnemy())
+			return;
 
-			if (UsesCircleStrafe())
+		if (!decidedToStay && !decidedToLeave && IsCaptureOwnedByEnemy())
+		{
+			if (rng.Randf() < 0.5f)
 			{
-				Vector3 right = awayDir.Cross(Vector3.Up);
-				offset = right * Mathf.Sin(strafeAngle) * minCombatDistance;
+				decidedToStay = true;
+				guardStayTimer = 0f;
 			}
 			else
 			{
-				offset = new Vector3(rng.RandfRange(-combatMoveRadius, combatMoveRadius), 0, rng.RandfRange(-combatMoveRadius, combatMoveRadius) );
+				decidedToLeave = true;
+				ForceLeaveCapturePoint();
+				return;
 			}
-
-			MovementEnemy.TargetPosition = currentTarget.GlobalPosition + awayDir * minCombatDistance + offset;
-			combatRepathTimer = combatRepathTime;
-			hasCombatMoveTarget = true;
 		}
-	}
-	
-	private void TriggerHunt(Vector3 position)
-	{
-		lastKnownTargetPosition = position;
-		huntTimer = MaxHuntTime;
 
-		forcedHunt = true;
-		currentState = EnemyState.HuntingTeam;
-	}
-	
-	private void UpdateHuntMovement()
-	{
-		MovementEnemy.TargetPosition = lastKnownTargetPosition;
-
-		if (HasReachedDestination())
+		if (decidedToStay)
 		{
-			huntTimer = 0f;
-		}
+			guardStayTimer += (float)delta;
 
-		Node3D seen = GetRaycastTeam();
-		if (seen != null)
-		{
-			lastKnownTargetPosition = seen.GlobalPosition;
-			currentTarget = seen;
+			if (guardStayTimer >= GuardStayRequired)
+			{
+				ForceLeaveCapturePoint();
+				return;
+			}
 		}
 	}
 	
-	private Node3D FindNearestTeam()
+	private void ForceLeaveCapturePoint()
 	{
+		PickRandomCapturePoint();
+		captureCompleted = false;
+		ChangeState(EnemyState.GoingToCapturePoint);
+	}
+	
+	private bool IsAssignedCaptureAlreadyOwned()
+	{
+		if (assignedCapturePoint is CapturePoint cp)
+			return cp.Owner == CapturePoint.OwnerType.Enemy;
+
+		return false;
+	}
+
+	private bool IsTeamInDetectionRange()
+	{
+		foreach (var body in EnemyDetection.GetOverlappingBodies())
+		{
+			if (body is Node node && node.IsInGroup("Team"))
+				return true;
+		}
+		return false;
+	}
+	
+	private bool IsBulletTeamInDetectionRange()
+	{
+		foreach (var body in EnemyDetection.GetOverlappingBodies())
+		{
+			if (body is Node node && node.IsInGroup("BulletTeam"))
+				return true;
+		}
+		return false;
+	}
+	
+	private bool IsInsideCapturePoint()
+	{
+		if (assignedCapturePoint == null)
+			return false;
+
+		Area3D area = assignedCapturePoint.GetNodeOrNull<Area3D>("CaptureArea");
+		if (area == null)
+			return false;
+
+		return area.GetOverlappingBodies().Contains(this);
+	}
+
+	
+	private void LookMovement(double delta)
+	{
+		Vector3 velocity = LinearVelocity;
+		velocity.Y = 0;
+
+		if (velocity.LengthSquared() < 0.01f)
+			return;
+
+		Vector3 lookDirection = velocity.Normalized();
+
+		Vector3 currentDirection = -GlobalTransform.Basis.Z;
+		currentDirection.Y = 0;
+		currentDirection = currentDirection.Normalized();
+
+		float angle = Mathf.Atan2(lookDirection.X, lookDirection.Z)
+					- Mathf.Atan2(currentDirection.X, currentDirection.Z);
+
+		angle = Mathf.Wrap(angle, -Mathf.Pi, Mathf.Pi);
+
+		float rotateStep = rotationSpeed * (float)delta;
+		angle = Mathf.Clamp(angle, -rotateStep, rotateStep);
+
+		RotateY(angle);
+	}
+	
+	private Vector3 PickRandomPointInCapturePoint()
+	{
+		if (assignedCapturePoint == null)
+			return GlobalPosition;
+
+		Vector3 center = assignedCapturePoint.GlobalPosition;
+ 
+		Vector3 Direction = new Vector3(
+			rng.RandfRange(-1f, 1f),
+			0,
+			rng.RandfRange(-1f, 1f)
+		).Normalized();
+ 
+		float distance = rng.RandfRange(1f, 4f);
+
+		Vector3 point = center + Direction * distance;
+
+		return point;
+	}
+	
+	private void UpdateTarget()
+	{ 
+		if (currentTarget != null && IsInstanceValid(currentTarget))
+			return;
+
 		var bodies = EnemyDetection.GetOverlappingBodies();
+
 		Node3D nearest = null;
 		float nearestDist = float.MaxValue;
 
@@ -383,294 +640,116 @@ public partial class enemy : RigidBody3D
 				}
 			}
 		}
-		return nearest;
-	}
-	
-	private Vector3 GetSeparationOffset()
-	{
-		Vector3 separation = Vector3.Zero;
 
-		foreach (Node node in GetTree().GetNodesInGroup("Enemy"))
+		if (nearest != null)
 		{
-			if (node == this || node is not Node3D other)
-				continue;
-
-			float dist = GlobalPosition.DistanceTo(other.GlobalPosition);
-			if (dist > 0 && dist < SeparationRadius)
-			{
-				Vector3 away = (GlobalPosition - other.GlobalPosition).Normalized();
-				separation += away * (SeparationRadius - dist);
-			}
-		}
-
-		return separation * SeparationStrength;
-	}
-	
-	private bool HasReachedDestination()
-	{
-		return GlobalPosition.DistanceTo(MovementEnemy.TargetPosition) < 1.5f;
-	}
-
-	
-	private void UpdateDetectionRange()
-	{
-		var shapeNode = EnemyDetection.GetNode<CollisionShape3D>("CollisionShape3D");
-
-		if (shapeNode.Shape is SphereShape3D sphere)
-		{
-			SphereShape3D newSphere = new SphereShape3D();
-			newSphere.Radius = detectionRange;
-
-			shapeNode.Shape = newSphere;
+			currentTarget = nearest;  
 		}
 	}
 	
-	private bool HasTeamInDetection()
+	private void LookAtTargetOrDirection(double delta) 
+	{ 
+		if (currentTarget == null || !IsInstanceValid(currentTarget)) 
+			return; 
+		
+		Node3D armPivot = GetNodeOrNull<Node3D>("ArmPivot"); 
+		Vector3 targetCenter = GetTargetCenter(currentTarget);
+		Vector3 toTarget = targetCenter - armPivot.GlobalPosition; 
+		
+		if (toTarget.LengthSquared() < 0.001f) 
+			return; 
+		
+		Vector3 FaceDirection = toTarget; FaceDirection.Y = 0; 
+		
+		if (FaceDirection.LengthSquared() > 0.001f) 
+		{ 
+			FaceDirection = FaceDirection.Normalized(); 
+			Vector3 currentDirection = -GlobalTransform.Basis.Z; currentDirection.Y = 0; 
+			currentDirection = currentDirection.Normalized(); 
+			float angle = Mathf.Atan2(FaceDirection.X, FaceDirection.Z) - Mathf.Atan2(currentDirection.X, currentDirection.Z); 
+			angle = Mathf.Wrap(angle, -Mathf.Pi, Mathf.Pi); 
+			float rotateStep = rotationSpeed * (float)delta; angle = Mathf.Clamp(angle, -rotateStep, rotateStep); 
+			RotateY(angle); 
+		} 
+		
+		float targetDistance = new Vector2(toTarget.X, toTarget.Z).Length(); 
+		float pitch = Mathf.Atan2(toTarget.Y, targetDistance); 
+		pitch = Mathf.Clamp(pitch, -Mathf.DegToRad(45f), Mathf.DegToRad(45f)); 
+		Vector3 armRot = armPivot.Rotation; armRot.X = Mathf.Lerp(armRot.X, pitch, 6f * (float)delta); 
+		armPivot.Rotation = armRot; 
+		armPivot.LookAt(targetCenter, Vector3.Up); 
+	}
+	
+	private Vector3 GetTargetCenter(Node3D target)
 	{
-		var bodies = EnemyDetection.GetOverlappingBodies();
-		foreach (var body in bodies)
+		Marker3D aim = target.GetNodeOrNull<Marker3D>("AimMarker");
+		if (aim != null)
+			return aim.GlobalPosition;
+
+		return target.GlobalPosition;
+	} 
+	
+	private bool CanSeeTeam(out Node3D seenTarget)
+	{
+		seenTarget = null;
+
+		if (!EnemySight.Enabled || !EnemySight.IsColliding())
+			return false;
+
+		if (EnemySight.GetCollider() is Node3D node && node.IsInGroup("Team"))
 		{
-			if (body is Node3D node && node.IsInGroup("Team"))
-				return true;
+			seenTarget = node;
+			return true;
 		}
+
 		return false;
 	}
 	
-	private Node3D GetRaycastTeam()
+	private bool ShootDecider(out Node3D target)
 	{
-		Node hit = GetSightHit();
-		if (hit is Node3D node && node.IsInGroup("Team"))
-			return node;
-
-		return null;
-	}
-	
-	private Node GetSightHit()
-	{
-		if (!EnemySight.IsColliding())
-			return null;
-
-		return EnemySight.GetCollider() as Node;
-	}
-
-	private bool AllyInSight()
-	{
-		Node hit = GetSightHit();
-		return hit != null && hit.IsInGroup("Enemy") && hit != this;
-	}
-
-	private bool TeamInSight()
-	{
-		Node hit = GetSightHit();
-		return hit != null && hit.IsInGroup("Team");
-	}
-	
-	private void MoveOutOfAllyWay()
-	{
-		Vector3 right = GlobalTransform.Basis.X;
-		Vector3 left = -right;
-
-		Vector3 chosenDir = rng.Randf() > 0.5f ? right : left;
-		MovementEnemy.TargetPosition = GlobalPosition + chosenDir * 4f;
-		hasCombatMoveTarget = true;
-	}
-	
-	private Node3D FindNearestCover()
-	{
-		var covers = GetTree().GetNodesInGroup("Cover");
-		Node3D nearest = null;
-		float nearestDist = float.MaxValue;
-
-		foreach (Node node in covers)
-		{
-			if (node is not Node3D cover)
-				continue;
-
-			float dist = GlobalPosition.DistanceTo(cover.GlobalPosition);
-			if (dist < nearestDist)
-			{
-				nearestDist = dist;
-				nearest = cover;
-			}
-		}
-
-		return nearest;
-	}
-	
-	public override void _PhysicsProcess(double delta)
-	{
-		UpdateTarget();
-		UpdateEnemyState();
-
-		if (currentState == EnemyState.InCombat)
-		{
-			UpdateCombatMovement(delta);
-		}
-		else if (currentState == EnemyState.HuntingTeam)
-		{
-			UpdateHuntMovement();
-		}
-		
-		if (currentState != EnemyState.InCombat)
-		{
-			LookMovement(delta);
-		}
-		
-		if (currentState == EnemyState.HuntingTeam && huntTimer <= 0f)
-		{
-			forcedHunt = false;
-			PickRandomCapturePoint();
-			currentState = EnemyState.GoingToCapture;
-		}
-
-		EnemyMovement(delta);
-		LookAtTargetOrDirection(delta);
-		Shooting();
-		
-		if (LinearVelocity.LengthSquared() < 0.05f)
-		{
-			stuckTimer += (float)delta;
-		}
-		else
-		{
-			stuckTimer = 0f;
-		}
-
-		if (stuckTimer > 2f && currentState == EnemyState.GoingToCapture)
-		{
-			PickRandomCapturePoint();
-			stuckTimer = 0f;
-		}
-	}
-	
-	private void PickRandomCapturePoint()
-	{
-		if (capturePoints.Count == 0)
-			return;
-
-		currentCapturePoint = capturePoints[rng.RandiRange(0, capturePoints.Count - 1)];
-
-		Vector3 spread = new Vector3(
-			rng.RandfRange(-CapturePointSpread, CapturePointSpread),
-			0,
-			rng.RandfRange(-CapturePointSpread, CapturePointSpread)
-		);
-
-		MovementEnemy.TargetPosition = currentCapturePoint.GlobalPosition + spread;
-	}
-	
-	private void UpdateTarget()
-	{
-		if (currentState == EnemyState.HuntingTeam)
-		{
-			Node3D seen = GetRaycastTeam();
-			if (seen != null)
-				currentTarget = seen;
-
-			return;
-		}
-
-		currentTarget = null;
-
-		var bodies = EnemyDetection.GetOverlappingBodies();
-		float nearestDist = float.MaxValue;
-
-		foreach (var body in bodies)
+		target = null;
+ 
+		foreach (var body in EnemyDetection.GetOverlappingBodies())
 		{
 			if (body is Node3D node && node.IsInGroup("Team"))
 			{
-				float dist = GlobalPosition.DistanceTo(node.GlobalPosition);
-				if (dist < nearestDist)
-				{
-					nearestDist = dist;
-					currentTarget = node;
-				}
+				target = node;
+				return true;
 			}
 		}
-	}
-	
-	private void LookAtTargetOrDirection(double delta)
-	{
-		if (currentTarget == null || !IsInstanceValid(currentTarget)) 
-		return;
-
-		Node3D armPivot = GetNodeOrNull<Node3D>("ArmPivot");
-		Vector3 targetCenter = currentTarget.GlobalPosition;
-
-		Vector3 toTarget = targetCenter - armPivot.GlobalPosition;
-		if (toTarget.LengthSquared() < 0.001f)
-			return;
-
-		Vector3 flatDir = toTarget;
-		flatDir.Y = 0;
-		if (flatDir.LengthSquared() > 0.001f)
+ 
+		if (!IsTeamInDetectionRange() && CanSeeTeam(out Node3D seen))
 		{
-			flatDir = flatDir.Normalized();
-
-			Vector3 currentDir = -GlobalTransform.Basis.Z;
-			currentDir.Y = 0;
-			currentDir = currentDir.Normalized();
-
-			float angle = Mathf.Atan2(flatDir.X, flatDir.Z) - Mathf.Atan2(currentDir.X, currentDir.Z);
-			angle = Mathf.Wrap(angle, -Mathf.Pi, Mathf.Pi);
-
-			float rotateStep = rotationSpeed * (float)delta;
-			angle = Mathf.Clamp(angle, -rotateStep, rotateStep);
-
-			RotateY(angle);
+			target = seen;
+			return true;
 		}
 
-		float targetDistance = new Vector2(toTarget.X, toTarget.Z).Length();
-		float pitch = Mathf.Atan2(toTarget.Y, targetDistance);
-
-		pitch = Mathf.Clamp(pitch, -Mathf.DegToRad(45f), Mathf.DegToRad(45f));
-
-		Vector3 armRot = armPivot.Rotation;
-		armRot.X = Mathf.Lerp(armRot.X, pitch, 6f * (float)delta);
-		armPivot.Rotation = armRot;
-
-		armPivot.LookAt(targetCenter, Vector3.Up);
+		return false;
 	}
-	
-	private void LookMovement(double delta)
-	{
-		Vector3 velocity = LinearVelocity;
-		velocity.Y = 0;
-
-		if (velocity.LengthSquared() < 0.01f)
-			return;
-
-		Vector3 lookDir = -velocity.Normalized();
-		float targetYaw = Mathf.Atan2(lookDir.X, lookDir.Z);
-
-		Vector3 rot = Rotation;
-		rot.Y = Mathf.LerpAngle(rot.Y, targetYaw, rotationSpeed * (float)delta);
-		Rotation = rot;
-	}
-	
+		
 	private async void Shooting()
 	{
 		if (isReloading || isShooting)
 			return;
-
-		if (AllyInSight())
+ 
+		if (currentTarget != null && IsInstanceValid(currentTarget))
+		{
+			float dist = GlobalPosition.DistanceTo(currentTarget.GlobalPosition);
+			if (dist <= detectionRange || CanSeeTeam(out _))
+			{
+				await FireLogic();
+				return;
+			}
+		}
+ 
+		if (!ShootDecider(out Node3D target))
 			return;
 
-		if (currentTarget != null && TargetWithinDetection(currentTarget))
-		{
-			await TryShoot();
-			return;
-		}
-
-		Node3D rayTarget = GetRaycastTeam();
-		if (rayTarget != null)
-		{
-			currentTarget = rayTarget;
-			await TryShoot();
-		}
+		currentTarget = target;
+		await FireLogic();
 	}
 	
-	private async Task TryShoot()
+	private async Task FireLogic()
 	{
 		if (currentAmmo > 0)
 		{
@@ -683,11 +762,6 @@ public partial class enemy : RigidBody3D
 			await Reload();
 		}
 	}
-	
-	private bool TargetWithinDetection (Node3D target)
-	{
-		return GlobalPosition.DistanceTo(target.GlobalPosition) <= detectionRange;
-	}
 
 	private async Task Shoot()
 	{
@@ -697,7 +771,9 @@ public partial class enemy : RigidBody3D
 		bulletEnemyInstance.GlobalTransform = bulletEnemySpawn.GlobalTransform;
 		bulletEnemyInstance.SetGunType(gunName);
 		bulletEnemyInstance.EnemyShooter = this;
-		bulletEnemyInstance.Direction = -bulletEnemySpawn.GlobalTransform.Basis.Z;
+		Vector3 aimPos = GetTargetCenter(currentTarget);
+		Vector3 shootDirection = (aimPos - bulletEnemySpawn.GlobalPosition).Normalized();
+		bulletEnemyInstance.Direction = shootDirection;
 		GetTree().CurrentScene.AddChild(bulletEnemyInstance);
 
 		await ToSignal(GetTree().CreateTimer(fireRate), "timeout");
@@ -794,11 +870,6 @@ public partial class enemy : RigidBody3D
 			Die();
 		}
 	}
-	
-	private bool IsLowHealth()
-	{
-		return CurrentHealth > 0 && CurrentHealth <= 50;
-	}
 
 	private async void Die()
 	{
@@ -814,8 +885,8 @@ public partial class enemy : RigidBody3D
 		AxisLockAngularX = false;
 		AxisLockAngularY = false;
 		AxisLockAngularZ = false;
-		Vector3 impulseDir = -GlobalTransform.Basis.Z + Vector3.Up * 0.6f;
-		ApplyImpulse(impulseDir.Normalized() * 6f);
+		Vector3 impulseDirection = -GlobalTransform.Basis.Z + Vector3.Up * 0.6f;
+		ApplyImpulse(impulseDirection.Normalized() * 6f);
 		await ToSignal(GetTree().CreateTimer(ragdollTime), "timeout");
 		EnemyDied?.Invoke(spawnMarker, gunName);
 		CallDeferred(nameof(DeferredDie));
@@ -857,8 +928,8 @@ public partial class enemy : RigidBody3D
 		rb.AddChild(gunVisual);
 		GetParent().AddChild(rb);
 		rb.GlobalTransform = gunHolder.GlobalTransform;
-		Vector3 throwDir = (-GlobalTransform.Basis.Z + Vector3.Up * 0.5f).Normalized();
-		rb.ApplyImpulse(throwDir * 3.5f);
+		Vector3 throwDirection = (-GlobalTransform.Basis.Z + Vector3.Up * 0.5f).Normalized();
+		rb.ApplyImpulse(throwDirection * 3.5f);
 		StartGunDespawn(rb);
 	}
 	

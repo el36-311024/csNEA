@@ -97,7 +97,7 @@ transform = Transform3D(0.215843, 0, -0.976428, 0, 1, 0, 0.976428, 0, 0.215843, 
 transform = Transform3D(0.21848398, 0, 0.9758407, 0, 1, 0, -0.9758407, 0, 0.21848398, -0.15810478, 0, -0.019871391)
 
 [node name="aimRay" type="RayCast3D" parent="Cam/Camera"]
-transform = Transform3D(0.99636614, -0.08517338, 3.723047e-09, 0, -4.3711385e-08, -0.99999994, 0.08517339, 0.9963661, -4.3552543e-08, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, -4.3711385e-08, -0.99999994, 0, 0.99999994, -4.3711385e-08, 0, 0, 0)
 target_position = Vector3(0, -100, 0)
 
 [node name="GroundCheck" type="RayCast3D" parent="."]
@@ -203,3 +203,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.96046e-08, -0.0739867)
 [node name="Bullets" type="Node" parent="."]
 
 [node name="Target" type="Marker3D" parent="."]
+
+[node name="AimMarker" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4749576, 0)
