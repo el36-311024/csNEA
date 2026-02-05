@@ -19,6 +19,13 @@ public partial class KillManager : Node
 	{
 		Instance = this;
 	}
+	
+	public void Reset()
+	{
+		TeamKills = 0;
+		EnemyKills = 0;
+		UpdateUI();
+	}
 
 	public void RegisterUI(ProgressBar teamBar, ProgressBar enemyBar, Label teamCount, Label enemyCount)
 	{
@@ -35,16 +42,16 @@ public partial class KillManager : Node
 
 	private void UpdateUI()
 	{
-		if (TeamBar != null)
+		if (IsInstanceValid(TeamBar))
 			TeamBar.Value = TeamKills;
 
-		if (EnemyBar != null)
+		if (IsInstanceValid(EnemyBar))
 			EnemyBar.Value = EnemyKills;
 
-		if (TeamCount != null)
+		if (IsInstanceValid(TeamCount))
 			TeamCount.Text = TeamKills.ToString();
 
-		if (EnemyCount != null)
+		if (IsInstanceValid(EnemyCount))
 			EnemyCount.Text = EnemyKills.ToString();
 	}
 
@@ -77,5 +84,13 @@ public partial class KillManager : Node
 			MatchStats.Instance.WinByCapture = false;
 			GetTree().ChangeSceneToFile("res://EndGame.tscn");
 		}
+	}
+	
+	public void UnregisterUI()
+	{
+		TeamBar = null;
+		EnemyBar = null;
+		TeamCount = null;
+		EnemyCount = null;
 	}
 }

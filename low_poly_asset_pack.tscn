@@ -1,0 +1,5 @@
+[gd_scene load_steps=2 format=3 uid="uid://5gcoxgtxvmlq"]
+
+[ext_resource type="PackedScene" uid="uid://cpk4oechxt86i" path="res://LowPolyAssetPack/LowPolyAssetPack/FBX/LowPolyAssetPack.fbx" id="1_qc03t"]
+
+[node name="LowPolyAssetPack" instance=ExtResource("1_qc03t")]

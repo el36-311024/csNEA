@@ -120,7 +120,7 @@ debug_color = Color(0.80414, 0, 0.266364, 0.42)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.145, 0.455, -0.77)
 
 [node name="EnemySight" type="RayCast3D" parent="ArmPivot/ArmMovement/GunPivot"]
-transform = Transform3D(25, 0, 0, 0, -1.0927847e-06, -25, 0, 25, -1.0927847e-06, -0.10127413, 0.11744812, 0)
+transform = Transform3D(110, 0, 0, 0, -4.808253e-06, -110, 0, 110, -4.808253e-06, -0.10127413, 0.11744812, 0)
 target_position = Vector3(0, -100, 0)
 
 [node name="GunHolder" type="Node3D" parent="ArmPivot/ArmMovement/GunPivot"]
@@ -147,3 +147,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.96046e-08, -0.0739867)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="EnemyDetection"]
 shape = SubResource("SphereShape3D_8q82m")
+
+[node name="AimMarker" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4749576, 0)

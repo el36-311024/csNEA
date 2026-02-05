@@ -9,6 +9,7 @@ public partial class BulletTeam : CharacterBody3D
 	public float Damage = 10f;
 	public Vector3 Direction = Vector3.Zero;
 	public Node3D TeamShooter;
+	public Vector3 ShooterPosition;
 	
 	public override void _Ready()
 	{

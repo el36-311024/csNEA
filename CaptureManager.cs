@@ -27,6 +27,18 @@ public partial class CaptureManager : Node
 
 		RegisterCaptureBars();
 	}
+	
+	public void Reset()
+	{
+		teamScore = 0;
+		enemyScore = 0;
+		TeamCaptureCount = 0;
+
+		foreach (var cp in points)
+		{
+			cp.ResetPoint();
+		}
+	}
 
 	public void RegisterCaptureBars()
 	{

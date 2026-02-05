@@ -1,6 +1,7 @@
-[gd_scene load_steps=9 format=3 uid="uid://cvdtv5ppxrabl"]
+[gd_scene load_steps=11 format=3 uid="uid://cvdtv5ppxrabl"]
 
 [ext_resource type="Script" uid="uid://nks4ru0aadw6" path="res://Map.cs" id="1_3vi7k"]
+[ext_resource type="Texture2D" uid="uid://k8u44r35656b" path="res://lukky_handpainted_textures_1.3/hand_painted_grass.png" id="2_3h1ab"]
 [ext_resource type="PackedScene" uid="uid://bpkbugrxdlqfc" path="res://CapturePoint.tscn" id="2_3vi7k"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_qhyq2"]
@@ -20,7 +21,10 @@ glow_enabled = true
 vertices = PackedVector3Array(-99.5, -0.32121098, -99.5, -99.5, -0.32121098, 99.5, 99.5, -0.32121098, 99.5, 99.5, -0.32121098, -99.5)
 polygons = [PackedInt32Array(3, 2, 0), PackedInt32Array(0, 2, 1)]
 
-[sub_resource type="PlaneMesh" id="PlaneMesh_gfjgm"]
+[sub_resource type="PlaneMesh" id="PlaneMesh_7if1s"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_v6avs"]
+albedo_texture = ExtResource("2_3h1ab")
 
 [sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_3vi7k"]
 data = PackedVector3Array(1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, 1, -1, 0, -1, 1, 0, -1)
@@ -36,12 +40,14 @@ transform = Transform3D(-0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, 0.75
 shadow_enabled = true
 
 [node name="PathForBots" type="NavigationRegion3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 0.7, 0, 0, 0)
 navigation_mesh = SubResource("NavigationMesh_gfjgm")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PathForBots"]
 transform = Transform3D(100, 0, 0, 0, 1, 0, 0, 0, 100, 0, -0.821211, 0)
-mesh = SubResource("PlaneMesh_gfjgm")
+mesh = SubResource("PlaneMesh_7if1s")
 skeleton = NodePath("../..")
+surface_material_override/0 = SubResource("StandardMaterial3D_v6avs")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="PathForBots/MeshInstance3D"]
 
@@ -49,73 +55,73 @@ skeleton = NodePath("../..")
 shape = SubResource("ConcavePolygonShape3D_3vi7k")
 
 [node name="AllSpawnPoints" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 457.99976, 0.7, 0)
 
 [node name="SpawnPoint" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.87058, 0.5922914, -86.91554)
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -462.5834, 0.5922914, -39.517647)
 
 [node name="enemy1" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.00087, 0.34698874, -91.63762)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.752527, 0.50000006, -95)
 
 [node name="enemy2" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.14553, 0.2108689, -91.908615)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.317795, 0.21100003, -93.675224)
 
 [node name="enemy3" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.63365, 0.114180386, -91.61621)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.52141, 0.11400002, -93.51159)
 
 [node name="enemy4" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.23382, 0.2108689, -91.93921)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.786743, 0.21100003, -81.81002)
 
 [node name="enemy5" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.540088, 0.2108689, -91.88431)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 0.50000006, -87.479774)
 
 [node name="enemy6" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.791924, 0.2108689, -91.52101)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0.50000006, -83.85909)
 
 [node name="enemy7" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.95394, 0.2108689, -91.71481)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.50000006, -86.368744)
 
 [node name="enemy8" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.4672, 0.2108689, -91.65752)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0.50000006, -87.479774)
 
 [node name="enemy9" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.43589, 0.2108689, -91.65851)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0.50000006, -82.5394)
 
 [node name="enemy10" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.24977, 0.2108689, -91.345505)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.50000006, -89.98683)
 
 [node name="enemy11" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.65015, -0.03943342, -91.398674)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.50000006, -83.600655)
 
 [node name="team1" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.00087, 0, 116.58625)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.00087, 0, 91.66405)
 
 [node name="team2" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.14553, 0, 116.55566)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.14553, 0, 91.63345)
 
 [node name="team3" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.63365, 0, 116.45315)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.63365, 0, 91.530945)
 
 [node name="team4" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.23382, 0, 116.43415)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.23382, 0, 91.51195)
 
 [node name="team5" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.540088, 0, 116.29156)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.540088, 0, 91.369354)
 
 [node name="team6" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.791924, 0, 116.42866)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.791924, 0, 91.506454)
 
 [node name="team7" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.95394, 0, 116.46566)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.95394, 0, 91.54346)
 
 [node name="team8" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.4672, 0, 116.52296)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.4672, 0, 91.60075)
 
 [node name="team9" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.43589, 0, 116.52195)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.43589, 0, 91.59975)
 
 [node name="team10" type="Marker3D" parent="AllSpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.24977, 0, 116.83495)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.24977, 0, 91.91275)
 
 [node name="KM" type="Control" parent="."]
 layout_mode = 3
@@ -216,42 +222,12 @@ offset_bottom = 139.0
 show_percentage = false
 
 [node name="CapturePoint1" parent="." instance=ExtResource("2_3vi7k")]
-transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0.40991688, -0.8265263, 0)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, -0.8398222, 0)
 
 [node name="CapturePoint2" parent="." instance=ExtResource("2_3vi7k")]
-transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, -73.49222, -0.8265263, 0)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, -64.610565, -0.683359, 0)
 
 [node name="CapturePoint3" parent="." instance=ExtResource("2_3vi7k")]
-transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 64.72494, -0.8265263, 0)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 65.59674, -0.66319, 0)
 
-[node name="CoverPlaces" type="Node3D" parent="."]
-
-[node name="Cover1" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -43.968975)
-
-[node name="Cover2" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.951105, 0, -6.8850155)
-
-[node name="Cover3" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.634475, 0, -4.1437454)
-
-[node name="Cover4" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 64.056015, 0, -11.520515)
-
-[node name="Cover5" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.68157, 0, -4.8721123)
-
-[node name="Cover6" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74.71021, 0, -6.6660376)
-
-[node name="Cover7" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.2555, 0, -10.451529)
-
-[node name="Cover8" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.792202, 0, -9.087902)
-
-[node name="Cover9" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.07848, 0, -9.478332)
-
-[node name="Cover10" type="Marker3D" parent="CoverPlaces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -33.905125)
+[node name="Builds" type="Node3D" parent="."]

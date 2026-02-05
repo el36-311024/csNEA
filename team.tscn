@@ -119,28 +119,27 @@ debug_color = Color(0.80414, 0, 0.266364, 0.42)
 [node name="GunPivot" type="Node3D" parent="ArmPivot/ArmMovement"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.145, 0.455, -0.77)
 
+[node name="TeamSight" type="RayCast3D" parent="ArmPivot/ArmMovement/GunPivot"]
+transform = Transform3D(110, 0, 0, 0, -4.808253e-06, -110, 0, 110, -4.808253e-06, -0.10127413, 0.11744812, 0)
+target_position = Vector3(0, -100, 0)
+
 [node name="GunHolder" type="Node3D" parent="ArmPivot/ArmMovement/GunPivot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.33559, -0.4546, 0.769532)
 
 [node name="Heavy" parent="ArmPivot/ArmMovement/GunPivot/GunHolder" instance=ExtResource("1_hdiuo")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.108842, -5.96046e-08, -0.0739867)
-script = null
 
 [node name="Pistol" parent="ArmPivot/ArmMovement/GunPivot/GunHolder" instance=ExtResource("2_tnpep")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.96046e-08, -0.0739867)
-script = null
 
 [node name="Rifle1" parent="ArmPivot/ArmMovement/GunPivot/GunHolder" instance=ExtResource("3_pvywl")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.96046e-08, -0.0739867)
-script = null
 
 [node name="Rifle2" parent="ArmPivot/ArmMovement/GunPivot/GunHolder" instance=ExtResource("4_hc10y")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.96046e-08, -0.0739867)
-script = null
 
 [node name="Sniper" parent="ArmPivot/ArmMovement/GunPivot/GunHolder" instance=ExtResource("5_3qryg")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.96046e-08, -0.0739867)
-script = null
 
 [node name="MovementTeam" type="NavigationAgent3D" parent="."]
 
@@ -148,3 +147,6 @@ script = null
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="TeamDetection"]
 shape = SubResource("SphereShape3D_tnpep")
+
+[node name="AimMarker" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4749576, 0)

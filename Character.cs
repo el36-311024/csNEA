@@ -7,7 +7,7 @@ public partial class Character : RigidBody3D
 	private float MouseSensitivity = 0.005f;
 	private float zoomSensitivity = 0.0015f;
 	private float Speed = 7.5f;
-	private float Jump = 10.0f;
+	private float Jump = 10f;
 	private float accumulatedYaw = 0f;
 	private float yaw = 0f; 
 	private float pitch = 0f;
@@ -301,7 +301,7 @@ public partial class Character : RigidBody3D
 			Camera.Position = Camera.Position.Lerp(targetPos, currentZoomSpeed * (float)delta);
 			float targetFov = isZoomed ? zoomFov : normalFov;
 			Camera.Fov = Mathf.Lerp(Camera.Fov, targetFov, zoomSpeed * (float)delta);
-			}
+		}
 		
 		public override void _IntegrateForces(PhysicsDirectBodyState3D state)
 		{
@@ -464,6 +464,8 @@ public partial class Character : RigidBody3D
 				bulletInstance.GlobalTransform = bulletHole.GlobalTransform;
 				bulletInstance.SetGunType(selectedGun);
 				bulletInstance.Direction = (targetPos - bulletHole.GlobalPosition).Normalized();
+				bulletInstance.TeamShooter = this;
+				bulletInstance.ShooterPosition = GlobalPosition;
 
 				switch(selectedGun)
 				{
